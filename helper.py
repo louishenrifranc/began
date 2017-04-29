@@ -15,14 +15,14 @@ def read_and_decode(filename_queue,
     context_features = {
         "img": tf.FixedLenFeature([], tf.string)
     }
-    sequence_features = {}
-    for index in range(5):
-        sequence_features["caption{}".format(index)] = tf.VarLenFeature(dtype=tf.float32)
+    # sequence_features = {}
+    # for index in range(5):
+    #     sequence_features["caption{}".format(index)] = tf.VarLenFeature(dtype=tf.float32)
 
     context_parsed, sequence_parsed = tf.parse_single_sequence_example(
         serialized=image_file,
         context_features=context_features,
-        sequence_features=sequence_features
+        # sequence_features=sequence_features
     )
 
     image = tf.decode_raw(context_parsed["img"], tf.uint8)
@@ -71,18 +71,18 @@ def read_and_decode(filename_queue,
 
     min_queue_examples = 256  # Shuffle elements
 
-    caption0 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption0"]), (4800, 1))
-    caption1 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption1"]), (4800, 1))
-    caption2 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption2"]), (4800, 1))
-    caption3 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption3"]), (4800, 1))
-    caption4 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption4"]), (4800, 1))
+    # caption0 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption0"]), (4800, 1))
+    # caption1 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption1"]), (4800, 1))
+    # caption2 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption2"]), (4800, 1))
+    # caption3 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption3"]), (4800, 1))
+    # caption4 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption4"]), (4800, 1))
 
-    inputs = [image,
-              caption0,
-              caption1,
-              caption2,
-              caption3,
-              caption4]
+    inputs = [image]
+    # caption0,
+    # caption1,
+    # caption2,
+    # caption3,
+    # caption4]
 
     if wrong_image:
         wrong_images = tf.train.shuffle_batch(

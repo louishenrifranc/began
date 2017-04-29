@@ -15,8 +15,10 @@ class Graph:
 
         # Placeholders
         self.is_training = tf.placeholder_with_default(False, shape=(), name="is_training")
-        self.learning_rate = tf.placeholder_with_default(0.00001, shape=(), name="learning_rate")
+        self.learning_rate = tf.placeholder_with_default(1e-5, shape=(), name="learning_rate")
         self.k_t = tf.placeholder_with_default(0.0, shape=[], name="k_t")
+        self.carry = tf.train.exponential_decay(1.0, self.global_step,
+                                                1000, 0.96, staircase=True)
 
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
 
@@ -40,10 +42,11 @@ class Graph:
     def build(self):
         self._inputs()
 
-        self._mean, self._log_sigma = self._generate_condition(self.sum_caption)
+        # self._mean, self._log_sigma = self._generate_condition(self.sum_caption)
 
         # Sample conditioning from a Gaussian distribution parametrized by a Neural Network
-        z = helper.sample(self._mean, self._log_sigma)
+        # z = helper.sample(self._mean, self._log_sigma)
+        z = tf.random_normal((self.batch_size, self.cfg.emb.emb_dim), 0, 1)
 
         # Generate an image
         self.gen_images = self.generator(z)
@@ -67,35 +70,38 @@ class Graph:
             # emb_dim
             return mean, log_sigma
 
-    def generator(self, embedding, scope_name="generator", reuse_variables=False):
+    def generator(self, z, scope_name="generator", reuse_variables=False):
         with tf.variable_scope(scope_name) as scope:
             if reuse_variables:
                 scope.reuse_variables()
-
             n = self.cfg.emb.emb_dim
-            out = ly.fully_connected(embedding, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify,
+            out = ly.fully_connected(z, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify,
                                      normalizer_fn=ly.batch_norm)
 
-            out = tf.reshape(out, [-1, 8, 8, n])
+            in_x = tf.reshape(out, [-1, 8, 8, n])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out1")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out1")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out2")
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out3")
 
-            out = tf.image.resize_nearest_neighbor(out, [16, 16])
+            in_x = tf.image.resize_nearest_neighbor(out, [16, 16])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out4")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out4")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out5")
 
-            out = tf.image.resize_nearest_neighbor(out, [32, 32])
+            in_x = tf.image.resize_nearest_neighbor(out, [32, 32])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out6")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out6")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out7")
 
-            out = tf.image.resize_nearest_neighbor(out, [64, 64])
+            in_x = tf.image.resize_nearest_neighbor(out, [64, 64])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out8")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out8")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
+
             out = tf_utils.cust_conv2d(out, 3, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out10",
                                        activation_fn=tf.tanh)
             return out
@@ -113,52 +119,56 @@ class Graph:
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out2")
 
             # 32 x 32
-            out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_1")
-            out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out3")
+            in_x = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_1")
+            out = tf_utils.cust_conv2d(in_x, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out3")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out4")
 
             # 16 x 16
-            out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_2")
-            out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out5")
+            in_x = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_2")
+            out = tf_utils.cust_conv2d(in_x, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out5")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out6")
 
             # 8 x 8
-            out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_3")
-            out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out7")
+            in_x = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_3")
+            out = tf_utils.cust_conv2d(in_x, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out7")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out8")
 
             # Concat embeddings
-            emb = tf.expand_dims(tf.expand_dims(emb, 1), 1)
-            emb = tf.tile(emb, [1, 8, 8, 1])
-            out = tf.concat([out, emb], axis=3)
-            out = tf.reshape(out, [-1, 8 * 8 * 5 * n])
+            out = tf.reshape(out, [-1, 8 * 8 * 4 * n])
 
-            out = ly.fully_connected(out, 1900, activation_fn=tf_utils.leaky_rectify)
+            out = ly.fully_connected(out, 2000, activation_fn=tf_utils.leaky_rectify)
 
             ############################################# Decoder part #############################################
-            out = ly.fully_connected(out, 8 * 8 * n // 2, activation_fn=tf_utils.leaky_rectify)
-            out = tf.reshape(out, [-1, 8, 8, n // 2])
+            out = ly.fully_connected(out, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify)
+            in_x = tf.reshape(out, [-1, 8, 8, n])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out10")
 
-            out = tf.image.resize_nearest_neighbor(out, [16, 16])
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out11")
+            in_x = tf.image.resize_nearest_neighbor(out, [16, 16])
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out11")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out12")
 
-            out = tf.image.resize_nearest_neighbor(out, [32, 32])
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out13")
+            in_x = tf.image.resize_nearest_neighbor(out, [32, 32])
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out13")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out14")
 
-            out = tf.image.resize_nearest_neighbor(out, [64, 64])
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out15")
+            in_x = tf.image.resize_nearest_neighbor(out, [64, 64])
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out15")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out16")
 
             out = tf_utils.cust_conv2d(out, 3, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out17",
                                        activation_fn=tf.tanh)
             return out
 
-    def compute_loss(self, D_real_in, D_real_out, D_gen_in, D_gen_out, k_t, gamma=0.75):
+    def compute_loss(self, D_real_in, D_real_out, D_gen_in, D_gen_out, k_t, gamma=0.55):
         def autoencoder_loss(out, inp, eta=1):
             diff = tf.abs(out - inp)
             return tf.reduce_sum(tf.pow(diff, eta))
@@ -188,9 +198,9 @@ class Graph:
             g_grad = self.optimizer.compute_gradients(g_loss, var_list=gen_variables)
             d_grad = self.optimizer.compute_gradients(d_loss, var_list=dis_variables)
 
-            self.kl_loss = -self._log_sigma + 0.5 * (-1 + tf.exp(2 * self._log_sigma) + tf.square(self._mean))
-            self.kl_loss = tf.reduce_mean(self.kl_loss)
-            g_loss += self.kl_loss
+            # self.kl_loss = -self._log_sigma + 0.5 * (-1 + tf.exp(2 * self._log_sigma) + tf.square(self._mean))
+            # self.kl_loss = tf.reduce_mean(self.kl_loss)
+            # g_loss += self.kl_loss
 
             # Training function
             self.g_train = self.optimizer.apply_gradients(g_grad, global_step=self.global_step)
@@ -216,9 +226,10 @@ class Graph:
         tf.summary.image(name="reconstructed_gen_image", tensor=self.reconstructed_gen_image, max_outputs=num_images)
 
         # Add summaries for loss functions
-        tf.summary.scalar(name="kl_loss", tensor=self.kl_loss)
         tf.summary.scalar(name="g_loss", tensor=self.g_loss)
         tf.summary.scalar(name="d_loss", tensor=self.d_loss)
+        tf.summary.scalar(name="k_tp", tensor=self.k_tp)
+        # tf.summary.scalar(name="k_tp", tensor=self.k_tp)
 
         # Add summaries for exponential decaying variables
         tf.summary.scalar(name="learning_rate", tensor=self.learning_rate)
@@ -229,7 +240,6 @@ class Graph:
         self.saver, self.summary_writer = helper.restore(self)
 
         with self.sess.as_default() as sess:
-            self.global_step.eval()
 
             tf.train.start_queue_runners(sess=self.sess)
             coord = tf.train.Coordinator()
@@ -238,10 +248,15 @@ class Graph:
             save_every = 3
             summary_every = 50
             nb_train_iter = 1000
-            decay_every = 50
+            decay_every = 20
             k_t_ = 0
 
+            last_epoch = self.global_step.eval() // nb_train_iter
+
             for epoch in trange(nb_epochs, desc="Epoch"):
+                if epoch < last_epoch:
+                    continue
+
                 if coord.should_stop():
                     break
 
@@ -252,7 +267,6 @@ class Graph:
                         self.learning_rate: learning_rate_,
                         self.k_t: min(max(k_t_, 0), 1),
                         self.is_training: True
-
                     }
                     output_feed = [self.g_train, self.d_train, self.d_loss, self.g_loss, self.k_tp]
 
