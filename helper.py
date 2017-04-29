@@ -6,7 +6,7 @@ from tqdm import trange
 def read_and_decode(filename_queue,
                     batch_size,
                     flip=True,
-                    wrong_image=True):
+                    wrong_image=False):
     reader = tf.TFRecordReader()
 
     # Read a single example
@@ -39,35 +39,35 @@ def read_and_decode(filename_queue,
 
     # image = tf.image.rgb_to_hsv(image)
 
-    inside_image = tf.image.central_crop(image, 0.50)
-    inside_image.set_shape((32, 32, 3))
+    # inside_image = tf.image.central_crop(image, 0.50)
+    # inside_image.set_shape((32, 32, 3))
 
     # Compute mean color for each channel
-    mean1 = tf.reduce_mean(image[:, :, 0])
-    mean2 = tf.reduce_mean(image[:, :, 1])
-    mean3 = tf.reduce_mean(image[:, :, 2])
+    # mean1 = tf.reduce_mean(image[:, :, 0])
+    # mean2 = tf.reduce_mean(image[:, :, 1])
+    # mean3 = tf.reduce_mean(image[:, :, 2])
 
-    channel1 = tf.expand_dims(tf.constant(value=1.0, shape=(32, 32)) * mean1, dim=2)
-    channel2 = tf.expand_dims(tf.constant(value=1.0, shape=(32, 32)) * mean2, dim=2)
-    channel3 = tf.expand_dims(tf.constant(value=1.0, shape=(32, 32)) * mean3, dim=2)
+    # channel1 = tf.expand_dims(tf.constant(value=1.0, shape=(32, 32)) * mean1, dim=2)
+    # channel2 = tf.expand_dims(tf.constant(value=1.0, shape=(32, 32)) * mean2, dim=2)
+    # channel3 = tf.expand_dims(tf.constant(value=1.0, shape=(32, 32)) * mean3, dim=2)
     #
-    mean_color = tf.stack([channel1, channel2, channel3], axis=2)
-    mean_color = tf.squeeze(mean_color)
+    # mean_color = tf.stack([channel1, channel2, channel3], axis=2)
+    # mean_color = tf.squeeze(mean_color)
 
     # 1 * 1 in hole zone
-    cropped_image = tf.ones(shape=tf.shape(inside_image))
+    # cropped_image = tf.ones(shape=tf.shape(inside_image))
 
     # Pad with surrouding zeros
-    cropped_image = tf.pad(cropped_image, [[16, 16], [16, 16], [0, 0]])
+    # cropped_image = tf.pad(cropped_image, [[16, 16], [16, 16], [0, 0]])
 
     # Zero in the hole
-    cropped_image = tf.subtract(1.0, cropped_image)
+    # cropped_image = tf.subtract(1.0, cropped_image)
 
     # Fill with zeros value image
-    cropped_image = image * cropped_image
+    # cropped_image = image * cropped_image
 
-    mean_color = tf.pad(mean_color, [[16, 16], [16, 16], [0, 0]])
-    cropped_image += mean_color
+    # mean_color = tf.pad(mean_color, [[16, 16], [16, 16], [0, 0]])
+    # cropped_image += mean_color
 
     min_queue_examples = 256  # Shuffle elements
 
@@ -77,25 +77,26 @@ def read_and_decode(filename_queue,
     # caption3 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption3"]), (4800, 1))
     # caption4 = tf.reshape(tf.sparse_tensor_to_dense(sequence_parsed["caption4"]), (4800, 1))
 
-    inputs = [image]
+    # inputs = [image]
     # caption0,
     # caption1,
     # caption2,
     # caption3,
     # caption4]
 
-    if wrong_image:
-        wrong_images = tf.train.shuffle_batch(
-            [image],
-            batch_size=1,
-            capacity=min_queue_examples + 3,
-            min_after_dequeue=min_queue_examples)
-        inputs.append(wrong_images[0])
+    # if wrong_image:
+    #     wrong_images = tf.train.shuffle_batch(
+    #         [image],
+    #         batch_size=1,
+    #         capacity=min_queue_examples + 3,
+    #         min_after_dequeue=min_queue_examples)
+    #     inputs.append(wrong_images[0])
 
-    images = tf.train.batch(
-        inputs,
+    images = tf.train.shuffle_batch(
+        [image],
         batch_size=batch_size,
-        capacity=min_queue_examples + 3 * batch_size)
+        capacity=min_queue_examples + 3 * batch_size,
+        min_after_dequeue=min_queue_examples)
 
     return images
 

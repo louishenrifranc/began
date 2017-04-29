@@ -15,13 +15,13 @@ def make_example(img):
 
 
 def build_examples():
-    path_to_save_examples = os.path.join(file_path, utils.back("examples"))
+    path_to_save_examples = os.path.join(file_path, "examples")
     if not os.path.exists(path_to_save_examples):
         os.makedirs(path_to_save_examples)
 
     for name in ["train", "val"]:
         # Path where images are
-        path = os.path.join(file_path, utils.back("{}2014".format(name)))
+        path = os.path.join(file_path, "{}2014".format(name))
 
         # Number of tfRecords already created
         # The file number to restart from

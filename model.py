@@ -29,15 +29,15 @@ class Graph:
     def _inputs(self):
         input_to_graph = helper.create_queue(self.cfg.queue.filename, self.batch_size)
         # True image
-        self.true_image = input_to_graph[0]
+        self.true_image = input_to_graph
         # Sum of the caption
-        self.mean_caption = None
-        for i in range(1, 6):
-            input_to_graph[i] = tf.transpose(input_to_graph[i], [0, 2, 1])
-            self.mean_caption = input_to_graph[i] if self.mean_caption is None else \
-                tf.concat([self.mean_caption, input_to_graph[i]], axis=1)
-
-        self.sum_caption = tf.reduce_sum(self.mean_caption, axis=1)
+        # self.mean_caption = None
+        # for i in range(1, 6):
+        #     input_to_graph[i] = tf.transpose(input_to_graph[i], [0, 2, 1])
+        #     self.mean_caption = input_to_graph[i] if self.mean_caption is None else \
+        #         tf.concat([self.mean_caption, input_to_graph[i]], axis=1)
+        #
+        # self.sum_caption = tf.reduce_sum(self.mean_caption, axis=1)
 
     def build(self):
         self._inputs()
@@ -52,8 +52,8 @@ class Graph:
         self.gen_images = self.generator(z)
 
         # Decode the image
-        self.reconstructed_true_image = self.discriminator(self.true_image, z)
-        self.reconstructed_gen_image = self.discriminator(self.gen_images, z, reuse_variables=True)
+        self.reconstructed_true_image = self.discriminator(self.true_image)
+        self.reconstructed_gen_image = self.discriminator(self.gen_images, reuse_variables=True)
 
         self.adversarial_loss()
         self._summaries()
@@ -106,7 +106,7 @@ class Graph:
                                        activation_fn=tf.tanh)
             return out
 
-    def discriminator(self, img, emb, scope_name="discriminator", reuse_variables=False):
+    def discriminator(self, img, scope_name="discriminator", reuse_variables=False):
         with tf.variable_scope(scope_name) as scope:
             if reuse_variables:
                 scope.reuse_variables()
