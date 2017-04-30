@@ -23,7 +23,7 @@ class Graph:
 
         # Input filename
         self.cfg = args
-        self.sess = tf.Session()
+        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True))
 
     def _inputs(self):
         input_to_graph = helper.create_queue(self.cfg.queue.filename, self.batch_size)
