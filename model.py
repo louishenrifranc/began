@@ -17,7 +17,8 @@ class Graph:
         self.is_training = tf.placeholder_with_default(False, shape=(), name="is_training")
         self.learning_rate = tf.placeholder_with_default(0.00001, shape=(), name="learning_rate")
         self.k_t = tf.placeholder_with_default(0.0, shape=[], name="k_t")
-
+        self.carry = tf.train.exponential_decay(1.0, self.global_step,
+                                                1000, 0.97, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
 
         # Input filename
@@ -28,6 +29,8 @@ class Graph:
         input_to_graph = helper.create_queue(self.cfg.queue.filename, self.batch_size)
         # True image
         self.true_image = input_to_graph[0]
+        self.wrong_image = input_to_graph[6]
+
         # Sum of the caption
         self.mean_caption = None
         for i in range(1, 6):
@@ -40,17 +43,20 @@ class Graph:
     def build(self):
         self._inputs()
 
-        self._mean, self._log_sigma = self._generate_condition(self.sum_caption)
+        # self._mean, self._log_sigma = self._generate_condition(self.sum_caption)
 
         # Sample conditioning from a Gaussian distribution parametrized by a Neural Network
-        z = helper.sample(self._mean, self._log_sigma)
+        z = tf.random_normal((self.batch_size, self.cfg.emb.emb_dim), 0, 1)
+        self.emb = self._generate_condition(self.sum_caption)
 
+        z = tf.concat([z, self.emb], 1)
         # Generate an image
         self.gen_images = self.generator(z)
 
         # Decode the image
-        self.reconstructed_true_image = self.discriminator(self.true_image, z)
-        self.reconstructed_gen_image = self.discriminator(self.gen_images, z, reuse_variables=True)
+        self.reconstructed_true_image = self.discriminator(self.true_image, self.emb)
+        self.reconstructed_wrong_image = self.discriminator(self.wrong_image, self.emb)
+        self.reconstructed_gen_image = self.discriminator(self.gen_images, self.emb, reuse_variables=True)
 
         self.adversarial_loss()
         self._summaries()
@@ -60,42 +66,46 @@ class Graph:
             if scope_reuse:
                 scope.reuse_variables()
             out = ly.fully_connected(sentence_embedding,
-                                     self.cfg.emb.emb_dim * 2,
-                                     activation_fn=tf_utils.leaky_rectify)
-            mean = out[:, :self.cfg.emb.emb_dim]
-            log_sigma = out[:, self.cfg.emb.emb_dim:]
+                                     self.cfg.emb.emb_dim,
+                                     activation_fn=tf.nn.tanh)
+            # mean = out[:, :self.cfg.emb.emb_dim]
+            # log_sigma = out[:, self.cfg.emb.emb_dim:]
             # emb_dim
-            return mean, log_sigma
+            return out
 
-    def generator(self, embedding, scope_name="generator", reuse_variables=False):
+    def generator(self, z, scope_name="generator", reuse_variables=False):
         with tf.variable_scope(scope_name) as scope:
             if reuse_variables:
                 scope.reuse_variables()
 
             n = self.cfg.emb.emb_dim
-            out = ly.fully_connected(embedding, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify,
+            out = ly.fully_connected(z, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify,
                                      normalizer_fn=ly.batch_norm)
 
-            out = tf.reshape(out, [-1, 8, 8, n])
+            in_x = tf.reshape(out, [-1, 8, 8, n])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out1")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out1")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out2")
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out3")
 
-            out = tf.image.resize_nearest_neighbor(out, [16, 16])
+            in_x = tf.image.resize_nearest_neighbor(out, [16, 16])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out4")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out4")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out5")
 
-            out = tf.image.resize_nearest_neighbor(out, [32, 32])
+            in_x = tf.image.resize_nearest_neighbor(out, [32, 32])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out6")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out6")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out7")
 
-            out = tf.image.resize_nearest_neighbor(out, [64, 64])
+            in_x = tf.image.resize_nearest_neighbor(out, [64, 64])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out8")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out8")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
+
             out = tf_utils.cust_conv2d(out, 3, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out10",
                                        activation_fn=tf.tanh)
             return out
@@ -113,18 +123,21 @@ class Graph:
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out2")
 
             # 32 x 32
-            out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_1")
-            out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out3")
+            in_x = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_1")
+            out = tf_utils.cust_conv2d(in_x, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out3")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out4")
 
             # 16 x 16
-            out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_2")
-            out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out5")
+            in_x = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_2")
+            out = tf_utils.cust_conv2d(in_x, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out5")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out6")
 
             # 8 x 8
-            out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_3")
-            out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out7")
+            in_x = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_3")
+            out = tf_utils.cust_conv2d(in_x, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out7")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out8")
 
             # Concat embeddings
@@ -133,40 +146,48 @@ class Graph:
             out = tf.concat([out, emb], axis=3)
             out = tf.reshape(out, [-1, 8 * 8 * 5 * n])
 
-            out = ly.fully_connected(out, 1900, activation_fn=tf_utils.leaky_rectify)
+            out = ly.fully_connected(out, 2400, activation_fn=tf_utils.leaky_rectify)
 
             ############################################# Decoder part #############################################
-            out = ly.fully_connected(out, 8 * 8 * n // 2, activation_fn=tf_utils.leaky_rectify)
-            out = tf.reshape(out, [-1, 8, 8, n // 2])
 
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
+            out = ly.fully_connected(out, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify)
+            in_x = tf.reshape(out, [-1, 8, 8, n])
+
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out10")
 
-            out = tf.image.resize_nearest_neighbor(out, [16, 16])
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out11")
+            in_x = tf.image.resize_nearest_neighbor(out, [16, 16])
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out11")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out12")
 
-            out = tf.image.resize_nearest_neighbor(out, [32, 32])
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out13")
+            in_x = tf.image.resize_nearest_neighbor(out, [32, 32])
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out13")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out14")
 
-            out = tf.image.resize_nearest_neighbor(out, [64, 64])
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out15")
+            in_x = tf.image.resize_nearest_neighbor(out, [64, 64])
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out15")
+            out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out16")
 
             out = tf_utils.cust_conv2d(out, 3, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out17",
                                        activation_fn=tf.tanh)
             return out
 
-    def compute_loss(self, D_real_in, D_real_out, D_gen_in, D_gen_out, k_t, gamma=0.75):
+    def compute_loss(self, D_real_in, D_real_out, D_gen_in, D_gen_out, D_wrong_in, D_wrong_out, k_t, gamma=0.75):
         def autoencoder_loss(out, inp, eta=1):
             diff = tf.abs(out - inp)
             return tf.reduce_sum(tf.pow(diff, eta))
 
         mu_real = autoencoder_loss(D_real_out, D_real_in)
         mu_gen = autoencoder_loss(D_gen_out, D_gen_in)
-        D_loss = mu_real - k_t * mu_gen
-        G_loss = mu_gen
+        mu_wrong = autoencoder_loss(D_wrong_out, D_wrong_in)
+
+        D_loss = mu_real - k_t * (1 / 2 * mu_gen + 1 / 2 * mu_wrong)
+        G_loss = (1 / 2 * mu_gen + 1 / 2 * mu_wrong)
+
         lam = 0.001  # 'learning rate' for k. Berthelot et al. use 0.001
         k_tp = k_t + lam * (gamma * mu_real - mu_gen)
         convergence_measure = mu_real + np.abs(gamma * mu_real - mu_gen)
@@ -178,6 +199,8 @@ class Graph:
                                                                           self.reconstructed_true_image,
                                                                           self.gen_images,
                                                                           self.reconstructed_gen_image,
+                                                                          self.wrong_image,
+                                                                          self.reconstructed_wrong_image,
                                                                           self.k_t)
 
             train_vars = tf.trainable_variables()
@@ -188,9 +211,9 @@ class Graph:
             g_grad = self.optimizer.compute_gradients(g_loss, var_list=gen_variables)
             d_grad = self.optimizer.compute_gradients(d_loss, var_list=dis_variables)
 
-            self.kl_loss = -self._log_sigma + 0.5 * (-1 + tf.exp(2 * self._log_sigma) + tf.square(self._mean))
-            self.kl_loss = tf.reduce_mean(self.kl_loss)
-            g_loss += self.kl_loss
+            # self.kl_loss = -self._log_sigma + 0.5 * (-1 + tf.exp(2 * self._log_sigma) + tf.square(self._mean))
+            # self.kl_loss = tf.reduce_mean(self.kl_loss)
+            # g_loss += self.kl_loss
 
             # Training function
             self.g_train = self.optimizer.apply_gradients(g_grad, global_step=self.global_step)
@@ -210,16 +233,16 @@ class Graph:
         # Add summaries for images
         num_images = self.batch_size
         tf.summary.image(name="true_image", tensor=self.true_image, max_outputs=num_images)
-        tf.summary.image(name="gen_imgae", tensor=self.gen_images, max_outputs=num_images)
+        tf.summary.image(name="gen_image", tensor=self.gen_images, max_outputs=num_images)
 
         tf.summary.image(name="reconstructed_true_image", tensor=self.reconstructed_true_image, max_outputs=num_images)
         tf.summary.image(name="reconstructed_gen_image", tensor=self.reconstructed_gen_image, max_outputs=num_images)
 
         # Add summaries for loss functions
-        tf.summary.scalar(name="kl_loss", tensor=self.kl_loss)
+        # tf.summary.scalar(name="kl_loss", tensor=self.kl_loss)
         tf.summary.scalar(name="g_loss", tensor=self.g_loss)
         tf.summary.scalar(name="d_loss", tensor=self.d_loss)
-
+        tf.summary.scalar(name="k_tp", tensor=self.k_tp)
         # Add summaries for exponential decaying variables
         tf.summary.scalar(name="learning_rate", tensor=self.learning_rate)
 

@@ -18,12 +18,12 @@ if __name__ == '__main__':
     cfg = config.cfg
 
     # Training files name
-    cfg.queue.filename = [
-        os.path.join(os.path.dirname(os.path.basename(__file__)), "examples", "train{}.tfrecords").format(index)
-        for index in range(args.train_first_file,
-                           args.train_first_file +
-                           args.train_set_size //
-                           cfg.queue.nb_examples_per_file)]
+    cfg.queue.filename = [os.path.join(os.path.dirname(os.path.basename(__file__)), "examples", "train.tfrecords")]
+    # os.path.join(os.path.dirname(os.path.basename(__file__)), "examples", "train{}.tfrecords").format(index)
+    # for index in range(args.train_first_file,
+    #                    args.train_first_file +
+    #                    args.train_set_size //
+    #                    cfg.queue.nb_examples_per_file)]
 
     print(cfg.queue.filename)
 
