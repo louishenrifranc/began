@@ -47,16 +47,16 @@ class Graph:
 
         # Sample conditioning from a Gaussian distribution parametrized by a Neural Network
         z = tf.random_normal((self.batch_size, self.cfg.emb.emb_dim), 0, 1)
-        self.emb = self._generate_condition(self.sum_caption)
+        # self.emb = self._generate_condition(self.sum_caption)
 
-        z = tf.concat([z, self.emb], 1)
+        # z = tf.concat([z, self.emb], 1)
         # Generate an image
         self.gen_images = self.generator(z)
 
         # Decode the image
-        self.reconstructed_true_image = self.discriminator(self.true_image, self.emb)
-        self.reconstructed_wrong_image = self.discriminator(self.wrong_image, self.emb)
-        self.reconstructed_gen_image = self.discriminator(self.gen_images, self.emb, reuse_variables=True)
+        self.reconstructed_true_image = self.discriminator(self.true_image)
+        self.reconstructed_wrong_image = self.discriminator(self.wrong_image, reuse_variables=True)
+        self.reconstructed_gen_image = self.discriminator(self.gen_images, reuse_variables=True)
 
         self.adversarial_loss()
         self._summaries()
@@ -68,9 +68,6 @@ class Graph:
             out = ly.fully_connected(sentence_embedding,
                                      self.cfg.emb.emb_dim,
                                      activation_fn=tf.nn.tanh)
-            # mean = out[:, :self.cfg.emb.emb_dim]
-            # log_sigma = out[:, self.cfg.emb.emb_dim:]
-            # emb_dim
             return out
 
     def generator(self, z, scope_name="generator", reuse_variables=False):
@@ -110,7 +107,7 @@ class Graph:
                                        activation_fn=tf.tanh)
             return out
 
-    def discriminator(self, img, emb, scope_name="discriminator", reuse_variables=False):
+    def discriminator(self, img, scope_name="discriminator", reuse_variables=False):
         with tf.variable_scope(scope_name) as scope:
             if reuse_variables:
                 scope.reuse_variables()
@@ -141,10 +138,6 @@ class Graph:
             out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out8")
 
             # Concat embeddings
-            emb = tf.expand_dims(tf.expand_dims(emb, 1), 1)
-            emb = tf.tile(emb, [1, 8, 8, 1])
-            out = tf.concat([out, emb], axis=3)
-            out = tf.reshape(out, [-1, 8 * 8 * 5 * n])
 
             out = ly.fully_connected(out, 2400, activation_fn=tf_utils.leaky_rectify)
 
