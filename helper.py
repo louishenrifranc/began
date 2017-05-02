@@ -3,6 +3,55 @@ import tensorflow as tf
 from tqdm import trange
 
 
+def read_and_decode_lsun(batch_size,
+                         flip=True,
+                         wrong_image=False):
+    # Make a queue of file names including all the JPEG images files in the relative
+    # image directory.
+    filename_queue = tf.train.string_input_producer(
+        tf.train.match_filenames_once(os.path.join("examples_lsun", "*.jpg")))
+
+    # Read an entire image file which is required since they're JPEGs, if the images
+    # are too large they could be split in advance to smaller files or use the Fixed
+    # reader to split up the file.
+    image_reader = tf.WholeFileReader()
+
+    # Read a whole file from the queue, the first returned value in the tuple is the
+    # filename which we are ignoring.
+    _, image_file = image_reader.read(filename_queue)
+
+    # Decode the image as a JPEG file, this will turn it into a Tensor which we can
+    # then use in training.
+    image = tf.image.decode_jpeg(image_file)
+    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+
+    image = tf.image.resize_images(image, [64, 64])
+    image = tf.reshape(image, (64, 64, -1))
+    image = tf.cond(pred=tf.equal(tf.shape(image)[2], 3), fn2=lambda: tf.image.grayscale_to_rgb(image),
+                    fn1=lambda: image)
+    if flip:
+        image = tf.image.random_flip_left_right(image)
+    image.set_shape((64, 64, 3))
+
+    min_queue_examples = 256  # Shuffle elements
+
+    inputs = [image]
+    if wrong_image:
+        wrong_images = tf.train.shuffle_batch(
+            [image],
+            batch_size=1,
+            capacity=min_queue_examples + 3,
+            min_after_dequeue=min_queue_examples)
+        inputs.append(wrong_images[0])
+
+    images = tf.train.batch(
+        inputs,
+        batch_size=batch_size,
+        capacity=min_queue_examples + 3 * batch_size)
+
+    return images
+
+
 def read_and_decode(filename_queue,
                     batch_size,
                     flip=True,
