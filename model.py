@@ -28,17 +28,17 @@ class Graph:
     def _inputs(self):
         input_to_graph = helper.create_queue(self.cfg.queue.filename, self.batch_size)
         # True image
-        self.true_image = input_to_graph[0]
-        self.wrong_image = input_to_graph[6]
+        self.true_image = input_to_graph
+        # self.wrong_image = input_to_graph[6]
 
         # Sum of the caption
-        self.mean_caption = None
-        for i in range(1, 6):
-            input_to_graph[i] = tf.transpose(input_to_graph[i], [0, 2, 1])
-            self.mean_caption = input_to_graph[i] if self.mean_caption is None else \
-                tf.concat([self.mean_caption, input_to_graph[i]], axis=1)
-
-        self.sum_caption = tf.reduce_sum(self.mean_caption, axis=1)
+        # self.mean_caption = None
+        # for i in range(1, 6):
+        #     input_to_graph[i] = tf.transpose(input_to_graph[i], [0, 2, 1])
+        #     self.mean_caption = input_to_graph[i] if self.mean_caption is None else \
+        #         tf.concat([self.mean_caption, input_to_graph[i]], axis=1)
+        #
+        # self.sum_caption = tf.reduce_sum(self.mean_caption, axis=1)
 
     def build(self):
         self._inputs()
@@ -55,7 +55,7 @@ class Graph:
 
         # Decode the image
         self.reconstructed_true_image = self.discriminator(self.true_image)
-        self.reconstructed_wrong_image = self.discriminator(self.wrong_image, reuse_variables=True)
+        # self.reconstructed_wrong_image = self.discriminator(self.wrong_image, reuse_variables=True)
         self.reconstructed_gen_image = self.discriminator(self.gen_images, reuse_variables=True)
 
         self.adversarial_loss()
@@ -138,7 +138,7 @@ class Graph:
             out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out8")
 
             # Concat embeddings
-
+            out = tf.reshape(out, [-1, 8 * 8 * 4 * n])
             out = ly.fully_connected(out, 2400, activation_fn=tf_utils.leaky_rectify)
 
             ############################################# Decoder part #############################################
@@ -169,17 +169,16 @@ class Graph:
                                        activation_fn=tf.tanh)
             return out
 
-    def compute_loss(self, D_real_in, D_real_out, D_gen_in, D_gen_out, D_wrong_in, D_wrong_out, k_t, gamma=0.75):
+    def compute_loss(self, D_real_in, D_real_out, D_gen_in, D_gen_out, k_t, gamma=0.75):
         def autoencoder_loss(out, inp, eta=1):
             diff = tf.abs(out - inp)
             return tf.reduce_sum(tf.pow(diff, eta))
 
         mu_real = autoencoder_loss(D_real_out, D_real_in)
         mu_gen = autoencoder_loss(D_gen_out, D_gen_in)
-        mu_wrong = autoencoder_loss(D_wrong_out, D_wrong_in)
 
-        D_loss = mu_real - k_t * (1 / 2 * mu_gen + 1 / 2 * mu_wrong)
-        G_loss = (1 / 2 * mu_gen + 1 / 2 * mu_wrong)
+        D_loss = mu_real - k_t * (1 / 2 * mu_gen)
+        G_loss = (1 / 2 * mu_gen)
 
         lam = 0.001  # 'learning rate' for k. Berthelot et al. use 0.001
         k_tp = k_t + lam * (gamma * mu_real - mu_gen)
@@ -192,8 +191,6 @@ class Graph:
                                                                           self.reconstructed_true_image,
                                                                           self.gen_images,
                                                                           self.reconstructed_gen_image,
-                                                                          self.wrong_image,
-                                                                          self.reconstructed_wrong_image,
                                                                           self.k_t)
 
             train_vars = tf.trainable_variables()

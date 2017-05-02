@@ -157,7 +157,7 @@ def create_queue(filename, batch_size):
     """
     filename_queue = tf.train.string_input_producer(
         filename)
-    return read_and_decode(filename_queue, batch_size)
+    return read_and_decode_lsun(batch_size)
 
 
 def sample(mean, log_sigma):
