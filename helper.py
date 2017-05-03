@@ -9,7 +9,7 @@ def read_and_decode_lsun(batch_size,
     # Make a queue of file names including all the JPEG images files in the relative
     # image directory.
     filename_queue = tf.train.string_input_producer(
-        tf.train.match_filenames_once(os.path.join("examples_lsun", "examples_lsun", "*.jpg")))
+        tf.train.match_filenames_once(os.path.join("..", "began3","examples_lsun", "examples_lsun", "*.jpg")))
 
     # Read an entire image file which is required since they're JPEGs, if the images
     # are too large they could be split in advance to smaller files or use the Fixed
@@ -25,13 +25,13 @@ def read_and_decode_lsun(batch_size,
     image = tf.image.decode_jpeg(image_file)
     image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
-    image = tf.image.resize_images(image, [64, 64])
-    image = tf.reshape(image, (64, 64, -1))
+    image = tf.image.resize_images(image, [128, 128])
+    image = tf.reshape(image, (128, 128, -1))
     image = tf.cond(pred=tf.equal(tf.shape(image)[2], 3), fn2=lambda: tf.image.grayscale_to_rgb(image),
                     fn1=lambda: image)
     if flip:
         image = tf.image.random_flip_left_right(image)
-    image.set_shape((64, 64, 3))
+    image.set_shape((128, 128, 3))
 
     min_queue_examples = 256  # Shuffle elements
 

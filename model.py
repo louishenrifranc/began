@@ -150,7 +150,7 @@ class Graph:
             # Concat embeddings
             out = tf.reshape(out, [-1, 8 * 8 * 5 * n])
 
-            out = ly.fully_connected(out, 2400, activation_fn=tf_utils.leaky_rectify)
+            out = ly.fully_connected(out, 2000, activation_fn=tf_utils.leaky_rectify)
 
             ############################################# Decoder part #############################################
 
@@ -177,7 +177,7 @@ class Graph:
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out16")
 
             in_x = tf.image.resize_nearest_neighbor(out, [128, 128])
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out16")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out16bis")
             out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out17")
 
