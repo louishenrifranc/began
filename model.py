@@ -79,33 +79,33 @@ class Graph:
 
             in_x = tf.reshape(out, [-1, 8, 8, n])
 
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out1")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out1")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out2")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out2")
 
             in_x = tf.image.resize_nearest_neighbor(out, [16, 16])
 
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out4")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out4")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out5")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out5")
 
             in_x = tf.image.resize_nearest_neighbor(out, [32, 32])
 
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out6")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out6")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out7")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out7")
 
             in_x = tf.image.resize_nearest_neighbor(out, [64, 64])
 
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out8")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out8")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out9")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
 
             in_x = tf.image.resize_nearest_neighbor(out, [128, 128])
 
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out10")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out10")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out11")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out11")
 
             out = tf_utils.cust_conv2d(out, 3, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out12",
                                        activation_fn=tf.tanh)
@@ -120,59 +120,59 @@ class Graph:
 
             ############################################# Encoder part #############################################
             # 128 x 128
-            out = tf_utils.cust_conv2d(img, 3, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out1")
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out2")
+            out = tf_utils.cust_conv2d(img, 3, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out1")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out2")
 
             # 64 x 64
-            in_x = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_1")
-            out = tf_utils.cust_conv2d(in_x, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out3")
+            in_x = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, batch_norm=True, scope_name="down_1")
+            out = tf_utils.cust_conv2d(in_x, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out3")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out4")
+            out = tf_utils.cust_conv2d(out, 2 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out4")
 
             # 32 x 32
-            in_x = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_1bis")
-            out = tf_utils.cust_conv2d(in_x, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out3bis")
+            in_x = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, batch_norm=True, scope_name="down_1bis")
+            out = tf_utils.cust_conv2d(in_x, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out3bis")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out4bis")
+            out = tf_utils.cust_conv2d(out, 3 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out4bis")
 
             # 16 x 16
-            in_x = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_2")
-            out = tf_utils.cust_conv2d(in_x, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out5")
+            in_x = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, batch_norm=True, scope_name="down_2")
+            out = tf_utils.cust_conv2d(in_x, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out5")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out6")
+            out = tf_utils.cust_conv2d(out, 4 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out6")
 
             # 8 x 8
-            in_x = tf_utils.cust_conv2d(out, 5 * n, h_f=3, w_f=3, batch_norm=False, scope_name="down_3")
-            out = tf_utils.cust_conv2d(in_x, 5 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out7")
+            in_x = tf_utils.cust_conv2d(out, 5 * n, h_f=3, w_f=3, batch_norm=True, scope_name="down_3")
+            out = tf_utils.cust_conv2d(in_x, 5 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out7")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, 5 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out8")
+            out = tf_utils.cust_conv2d(out, 5 * n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out8")
 
             # Concat embeddings
             out = tf.reshape(out, [-1, 8 * 8 * 5 * n])
 
-            out = ly.fully_connected(out, 2000, activation_fn=tf_utils.leaky_rectify)
+            out = ly.fully_connected(out, 2000, activation_fn=tf_utils.leaky_rectify, normalizer_fn=ly.batch_norm)
 
             ############################################# Decoder part #############################################
 
-            out = ly.fully_connected(out, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify)
+            out = ly.fully_connected(out, 8 * 8 * n, activation_fn=tf_utils.leaky_rectify, normalizer_fn=ly.batch_norm)
             in_x = tf.reshape(out, [-1, 8, 8, n])
 
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out9")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out9")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out10")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out10")
 
             in_x = tf.image.resize_nearest_neighbor(out, [16, 16])
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out11")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out11")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out12")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out12")
 
             in_x = tf.image.resize_nearest_neighbor(out, [32, 32])
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out13")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out13")
             out = self.carry * in_x + (1 - self.carry) * out
-            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out14")
+            out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out14")
 
             in_x = tf.image.resize_nearest_neighbor(out, [64, 64])
-            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out15")
+            out = tf_utils.cust_conv2d(in_x, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=True, scope_name="out15")
             out = self.carry * in_x + (1 - self.carry) * out
             out = tf_utils.cust_conv2d(out, n, h_f=3, w_f=3, h_s=1, w_s=1, batch_norm=False, scope_name="out16")
 
